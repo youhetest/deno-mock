@@ -1,4 +1,4 @@
-import { Application } from "https://deno.land/x/oak@v12.6.1/mod.ts";
+import { Router, Application, Context /* etc. */ } from "https://deno.land/x/oak@v12.6.1/mod.ts";
 import * as path from "std/path/mod.ts";
 import { exists } from "std/fs/exists.ts";
 
