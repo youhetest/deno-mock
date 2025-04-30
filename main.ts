@@ -1,4 +1,4 @@
-import { Application } from "oak";
+import { Application } from "jsr:@oak/oak/application";
 import router from "./routes.ts";
 import { loadMocks } from "./mockService.ts";
 
