@@ -1,1 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Deno Mock Tool</title>
+    <style>
+        /* CSS styles remain the same */
+        body { font-family: sans-serif; margin: 20px; background-color: #f8f9fa; font-size: 14px; }
+        .container { max-width: 1400px; margin: 20px auto; background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 18px; }
+        label { display: block; margin-bottom: 6px; font-weight: bold; color: #495057;}
+        input[type="text"], input[type="number"], select, textarea {
+            width: 100%; padding: 10px; box-sizing: border-box; margin-bottom: 5px; border: 1px solid #ced4da; border-radius: 4px; font-size: 0.95rem;
+        }
+        textarea { min-height: 120px; resize: vertical; font-family: monospace; }
+        button { padding: 10px 18px; cursor: pointer; border-radius: 4px; border: none; background-color: #007bff; color: white; font-size: 1rem; }
+        button:hover { background-color: #0056b3; }
+        .mock-list { margin-top: 35px; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; table-layout: fixed; border: 1px solid #dee2e6; }
+        th, td { border: 1px solid #dee2e6; padding: 10px 8px; text-align: left; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; }
+        th { background-color: #e9ecef; font-weight: bold; color: #495057;}
+        th:nth-child(1), td:nth-child(1) { width: 15%; } /* Name */
+        th:nth-child(2), td:nth-child(2) { width: 7%; }  /* Method */
+        th:nth-child(3), td:nth-child(3) { width: 33%; } /* Full URL Example */
+        th:nth-child(4), td:nth-child(4) { width: 6%; }  /* Status */
+        th:nth-child(5), td:nth-child(5) { width: 12%; } /* Content-Type */
+        th:nth-child(6), td:nth-child(6) { width: 15%; } /* Body Preview */
+        th:nth-child(7), td:nth-child(7) { width: 12%; text-align: center; } /* Actions */
+        pre { background-color: #f1f1f1; padding: 5px 8px; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; max-height: 80px; overflow-y: auto; font-size: 0.85em; margin: 0; border: 1px solid #ddd;}
+        code { font-size: 0.9em; background-color: #e9e9e9; padding: 2px 4px; border-radius: 3px; display: inline-block; word-break: break-all; }
+        .action-buttons { white-space: nowrap; min-width: 110px; }
+        .action-buttons form, .action-buttons button { display: inline-block; margin: 2px 3px; vertical-align: middle; }
+        .action-buttons button { font-size: 0.85em; padding: 4px 8px; }
+        .delete-btn { background-color: #dc3545; color: white;}
+        .delete-btn:hover { background-color: #c82333; }
+        .edit-btn { background-color: #ffc107; color: black; }
+        .edit-btn:hover { background-color: #e0a800; }
+        #edit-indicator { margin-top: 15px; margin-bottom: 10px; font-weight: bold; color: #856404; display: none; border: 1px solid #ffeeba; padding: 10px 15px; border-radius: 4px; background-color: #fff3cd; }
+        .help-text { color: #6c757d; display: block; margin-top: 4px; font-size: 0.85em; font-weight: normal;}
+        .no-mocks { color: #6c757d; padding: 15px; text-align: center; }
+        h1, h2 { color: #343a40; margin-bottom: 0.75rem; }
+        h1 { margin-bottom: 1.5rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Simple Deno Mock Tool</h1>
 
+        <h2 id="form-title">Add Mock Endpoint</h2>
+        <p id="form-subtitle" class="help-text">Define a new mock API endpoint. Provide a unique combination of Method, Path, and Query Parameters.</p>
+        <p id="edit-indicator">⚠️ You are currently editing a mock. Saving will update the existing entry based on Method, Path, and Query Parameters.</p>
+
+        <form id="mock-form" action="/add_mock" method="post">
+            <!-- Form fields remain the same -->
+            <div class="form-group">
+                <label for="name">Interface Name (Optional):</label>
+                <input type="text" id="name" name="name" placeholder="e.g., Get User Details">
+                <small class="help-text">A descriptive name for this mock endpoint.</small>
+            </div>
+             <div class="form-group">
+                <label for="path">URL Path:</label>
+                <input type="text" id="path" name="path" required placeholder="/api/users/1">
+                <small class="help-text">Enter the base path only (e.g., <code>/api/data</code>). Do not include query parameters here. Must start with '/'.</small>
+            </div>
+             <div class="form-group">
+                <label for="query_params">Query Parameters (Optional):</label>
+                <input type="text" id="query_params" name="query_params" placeholder="id=1&category=books">
+                <small class="help-text">Enter parameters as a string (e.g., <code>key1=value1&key2=value2</code>). Leave empty to match the path regardless of query parameters.</small>
+            </div>
+            <div class="form-group">
+                <label for="method">HTTP Method:</label>
+                <select id="method" name="method" required>
+                    <option value="GET">GET</option>
+                    <option value="POST">POST</option>
+                    <option value="PUT">PUT</option>
+                    <option value="DELETE">DELETE</option>
+                    <option value="PATCH">PATCH</option>
+                    <option value="OPTIONS">OPTIONS</option>
+                    <option value="HEAD">HEAD</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="status_code">Status Code:</label>
+                <input type="number" id="status_code" name="status_code" value="200" required>
+            </div>
+             <div class="form-group">
+                <label for="content_type">Content-Type:</label>
+                <input type="text" id="content_type" name="content_type" value="application/json">
+            </div>
+            <div class="form-group">
+                <label for="response_body">Response Body:</label>
+                <textarea id="response_body" name="response_body"></textarea>
+            </div>
+            <button type="submit" id="save-button">Save Mock</button>
+            <button type="button" id="cancel-edit-button" style="display: none; background-color: #6c757d; margin-left: 10px;">Cancel Edit</button>
+        </form>
+
+        <div class="mock-list">
+            <h2>Current Mock Endpoints</h2>
+            <% if (mocks && mocks.length > 0) { %>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Method</th>
+                        <th>Full URL Example</th>
+                        <th>Status</th>
+                        <th>Content-Type</th>
+                        <th>Body Preview</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% mocks.forEach(mock => { %>
+                    <% const queryString = encodeQueryParams(mock.query_params || {}); %>
+                    <% const fullUrl = mock.path + (queryString ? '?' + queryString : ''); %>
+                    <% const displayName = mock.name || '(No Name)'; %>
+                    <%# REMOVED the inline escapeAttr function definition block %>
+                    <%# Use the escapeAttr passed from routes.ts directly %>
+                    <tr>
+                        <td><%- displayName %></td>
+                        <td><code><%- mock.method %></code></td>
+                        <td><code><%- fullUrl %></code></td>
+                        <td><%- mock.status_code %></td>
+                        <td><%- mock.content_type %></td>
+                        <td><pre><%- mock.response_body %></pre></td>
+                        <td class="action-buttons">
+                            <button type="button" class="edit-btn"
+                                    data-name="<%= escapeAttr(mock.name) %>"       <%# Use escapeAttr from server %>
+                                    data-path="<%= escapeAttr(mock.path) %>"       <%# Use escapeAttr from server %>
+                                    data-method="<%= escapeAttr(mock.method) %>"   <%# Use escapeAttr from server %>
+                                    data-query="<%= escapeAttr(queryString) %>"   <%# Use escapeAttr from server %>
+                                    data-status="<%= mock.status_code %>"          <%# Status is numeric, usually safe %>
+                                    data-ctype="<%= escapeAttr(mock.content_type) %>" <%# Use escapeAttr from server %>
+                                    data-body="<%= escapeAttr(mock.response_body) %>"> <%# Use escapeAttr from server %>
+                                Edit
+                            </button>
+                            <form action="/delete_mock" method="post">
+                                <input type="hidden" name="path" value="<%= escapeAttr(mock.path) %>"> <%# Use escapeAttr from server %>
+                                <input type="hidden" name="method" value="<%= escapeAttr(mock.method) %>"> <%# Use escapeAttr from server %>
+                                <input type="hidden" name="query_params" value="<%= escapeAttr(queryString) %>"> <%# Use escapeAttr from server %>
+                                <button type="submit" class="delete-btn">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    <% }); %>
+                </tbody>
+            </table>
+            <% } else { %>
+            <p class="no-mocks">No mocks defined yet. Add one using the form above.</p>
+            <% } %>
+        </div>
+    </div>
+
+    <script>
+        // Client-side Javascript (decodeHtmlEntities, event listeners etc) remains the same
+        function decodeHtmlEntities(text) {
+            if (text === null || typeof text === 'undefined') return '';
+            text = String(text);
+            const textarea = document.createElement('textarea');
+            textarea.innerHTML = text;
+            return textarea.value;
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('mock-form');
+            const nameInput = document.getElementById('name');
+            const pathInput = document.getElementById('path');
+            const queryInput = document.getElementById('query_params');
+            const methodSelect = document.getElementById('method');
+            const statusInput = document.getElementById('status_code');
+            const ctypeInput = document.getElementById('content_type');
+            const bodyTextarea = document.getElementById('response_body');
+            const formTitle = document.getElementById('form-title');
+            const formSubtitle = document.getElementById('form-subtitle');
+            const editIndicator = document.getElementById('edit-indicator');
+            const saveButton = document.getElementById('save-button');
+            const cancelEditButton = document.getElementById('cancel-edit-button');
+
+            function resetFormToAddState() {
+                form.reset();
+                nameInput.value = ''; pathInput.value = ''; queryInput.value = ''; bodyTextarea.value = '';
+                statusInput.value = '200'; ctypeInput.value = 'application/json'; methodSelect.value = 'GET';
+                formTitle.textContent = 'Add Mock Endpoint';
+                formSubtitle.innerHTML = 'Define a new mock API endpoint...'; // Abbreviated for clarity
+                editIndicator.style.display = 'none';
+                saveButton.textContent = 'Save Mock';
+                cancelEditButton.style.display = 'none';
+                form.action = '/add_mock';
+            }
+
+            document.querySelector('.mock-list').addEventListener('click', function(event) {
+                const targetButton = event.target.closest('.edit-btn');
+                if (targetButton) {
+                    const button = targetButton;
+                    const name = decodeHtmlEntities(button.getAttribute('data-name'));
+                    const path = button.getAttribute('data-path');
+                    const method = button.getAttribute('data-method');
+                    const queryString = button.getAttribute('data-query');
+                    const status = button.getAttribute('data-status');
+                    const ctype = decodeHtmlEntities(button.getAttribute('data-ctype'));
+                    const encodedBody = button.getAttribute('data-body');
+
+                    nameInput.value = name || '';
+                    pathInput.value = path || '';
+                    methodSelect.value = method || 'GET';
+                    queryInput.value = queryString || '';
+                    statusInput.value = status || '200';
+                    ctypeInput.value = ctype || 'application/json';
+                    bodyTextarea.value = decodeHtmlEntities(encodedBody);
+
+                    let editUrl = `<code>${method} ${path}${queryString ? '?' + queryString : ''}</code>`;
+                    let editTitleText = `Editing Mock: ${name ? '"' + name + '"' : editUrl }`
+                    formTitle.textContent = editTitleText;
+                    formSubtitle.innerHTML = `Editing definition for ${editUrl}. Saving updates the existing entry.`;
+                    editIndicator.style.display = 'block';
+                    saveButton.textContent = 'Update Mock';
+                    cancelEditButton.style.display = 'inline-block';
+                    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+
+            cancelEditButton.addEventListener('click', resetFormToAddState);
+
+            pathInput.addEventListener('input', () => {
+                if (pathInput.value && !pathInput.value.startsWith('/')) {
+                    pathInput.setCustomValidity("Path must start with '/'.");
+                } else {
+                    pathInput.setCustomValidity("");
+                }
+                pathInput.reportValidity();
+            });
+            form.addEventListener('submit', (event) => {
+                if (pathInput.value && !pathInput.value.startsWith('/')) {
+                    pathInput.setCustomValidity("Path must start with '/'.");
+                    pathInput.reportValidity();
+                    event.preventDefault();
+                } else {
+                     pathInput.setCustomValidity("");
+                }
+            });
+        });
+    </script>
+</body>
+</html>
