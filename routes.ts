@@ -12,12 +12,13 @@ const viewsPath = path.join(scriptDir, "views");
 // MAKE SURE THIS IS THE EXACT CODE IN YOUR FILE:
 const escapeAttrHelper = (str: unknown): string => {
     if (typeof str !== 'string') return '';
-    // Replace characters with their corresponding HTML entities
+    // Need the HTML entity ''' for single quotes to be safe in attributes
+    // Using double quotes for the JS string literal avoids escaping issues
     return str.replace(/&/g, "&")
               .replace(/</g, "<")
               .replace(/>/g, ">")
-              .replace(/"/g, """) // <<< THIS MUST BE EXACTLY """
-              .replace(/'/g, "'");
+              .replace(/"/g, "\"")
+              .replace(/'/g, "'"); // Use HTML entity '
 };
 
 
