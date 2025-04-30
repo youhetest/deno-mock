@@ -1,4 +1,13 @@
-import * as path from "std/path/mod.ts";
+// Instead of: import { Application } from "oak";
+import { Application } from "https://deno.land/x/oak@v12.6.1/mod.ts";
+
+// Instead of: import * as dejs from "dejs";
+import * as dejs from "https://deno.land/x/dejs@0.10.3/mod.ts";
+
+// Instead of: import * as path from "std/path/mod.ts";
+import * as path from "https://deno.land/std@0.208.0/path/mod.ts";
+
+// import * as path from "std/path/mod.ts";
 import { exists } from "std/fs/exists.ts";
 
 const MOCKS_FILE = path.join(Deno.cwd(), "mocks.json");
