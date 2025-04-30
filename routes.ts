@@ -16,8 +16,8 @@ const escapeAttrHelper = (str: unknown): string => {
     return str.replace(/&/g, "&")
               .replace(/</g, "<")
               .replace(/>/g, ">")
-              .replace(/"/g, """) // Use HTML entity " for double quote
-              .replace(/'/g, "'"); // Use HTML entity ' for single quote
+              .replace(/"/g, """) // <<< THIS MUST BE EXACTLY """
+              .replace(/'/g, "'");
 };
 
 
