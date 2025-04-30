@@ -7,7 +7,7 @@ import * as dejs from "https://deno.land/x/dejs@0.10.3/mod.ts";
 // Instead of: import * as path from "std/path/mod.ts";
 import * as path from "https://deno.land/std@0.208.0/path/mod.ts";
 
-import { Application } from "oak";
+// import { Application } from "oak";
 import router from "./routes.ts";
 import { loadMocks } from "./mockService.ts";
 
