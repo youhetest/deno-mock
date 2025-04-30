@@ -8,7 +8,7 @@ import * as dejs from "https://deno.land/x/dejs@0.10.3/mod.ts";
 import * as path from "https://deno.land/std@0.208.0/path/mod.ts";
 
 // import * as path from "std/path/mod.ts";
-import { exists } from "std/fs/exists.ts";
+import * as path from "https://deno.land/std@0.208.0/path/mod.ts";
 
 const MOCKS_FILE = path.join(Deno.cwd(), "mocks.json");
 
