@@ -1,0 +1,13 @@
+[
+  {
+    "name": "普通用户端 获取最近10条订单信息",
+    "path": "/userapi/getorderinfo",
+    "method": "GET",
+    "query_params": {
+      "wxid": "34128650123946750918"
+    },
+    "status_code": 200,
+    "content_type": "application/json",
+    "response_body": "{\"order\":[{\"orderid\":\"wxasdfasdfasdyf8as7df8asd7f98asdf6857asdf\",\"merchantname\":\"湛江路美眉棋牌室\",\"roomname\":\"华山厅\",\"roomusestarttime\":\"2025-04-29 19:00:00\",\"roomuseendtime\":\"2025-04-29 23:00:00\",\"orderprice\":\"15000\"},{\"orderid\":\"wxasdfasdfasdyf8as7df8asd7f98asdf6857asdf\",\"merchantname\":\"湛江路美眉棋牌室\",\"roomname\":\"华山厅\",\"roomusestarttime\":\"2025-04-29 19:00:00\",\"roomuseendtime\":\"2025-04-29 23:00:00\",\"orderprice\":\"15000\"},{\"orderid\":\"wxasdfasdfasdyf8as7df8asd7f98asdf6857asdf\",\"merchantname\":\"湛江路美眉棋牌室\",\"roomname\":\"华山厅\",\"roomusestarttime\":\"2025-04-29 19:00:00\",\"roomuseendtime\":\"2025-04-29 23:00:00\",\"orderprice\":\"15000\"},{\"orderid\":\"wxasdfasdfasdyf8as7df8asd7f98asdf6857asdf\",\"merchantname\":\"湛江路美眉棋牌室\",\"roomname\":\"华山厅\",\"roomusestarttime\":\"2025-04-29 19:00:00\",\"roomuseendtime\":\"2025-04-29 23:00:00\",\"orderprice\":\"15000\"},{\"orderid\":\"wxasdfasdfasdyf8as7df8asd7f98asdf6857asdf\",\"merchantname\":\"湛江路美眉棋牌室\",\"roomname\":\"华山厅\",\"roomusestarttime\":\"2025-04-29 19:00:00\",\"roomuseendtime\":\"2025-04-29 23:00:00\",\"orderprice\":\"15000\"},{\"orderid\":\"wxasdfasdfasdyf8as7df8asd7f98asdf6857asdf\",\"merchantname\":\"湛江路美眉棋牌室\",\"roomname\":\"华山厅\",\"roomusestarttime\":\"2025-04-29 19:00:00\",\"roomuseendtime\":\"2025-04-29 23:00:00\",\"orderprice\":\"15000\"}]}"
+  }
+]
