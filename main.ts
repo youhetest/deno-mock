@@ -8,8 +8,8 @@ import * as dejs from "https://deno.land/x/dejs@0.10.3/mod.ts";
 import * as path from "https://deno.land/std@0.208.0/path/mod.ts";
 
 import { Application } from "oak";
-import router from "routes.ts";
-import { loadMocks } from "mockService.ts";
+import router from "./routes.ts";
+import { loadMocks } from "./mockService.ts";
 
 const app = new Application();
 const port = 8055; // Or use Deno.env.get("PORT")
