@@ -1,13 +1,7 @@
-// Import necessary modules using full URLs
-import * as path from "https://deno.land/std@0.208.0/path/mod.ts";        // Keep only ONE path import
-import { exists } from "https://deno.land/std@0.208.0/fs/exists.ts";    // Import 'exists' function
-// Removed unused Application and dejs imports that were here
-// Removed duplicate path import that was here
+import * as path from "std/path/mod.ts";
+import { exists } from "std/fs/exists.ts";
 
 const MOCKS_FILE = path.join(Deno.cwd(), "mocks.json");
-// Note: Using Deno.cwd() might be problematic in some deployment environments
-// if the current working directory isn't what you expect or if the filesystem
-// isn't writable/persistent. For Deno Deploy, CWD is usually the project root.
 
 export interface MockDefinition {
     name: string;
@@ -37,6 +31,7 @@ export function encodeQueryParams(params: Record<string, string> | URLSearchPara
 
     if (items.length === 0) return "";
 
+    // Sort by key, then by value for stability if keys are identical (though unlikely with form data)
     items.sort(([keyA, valA], [keyB, valB]) => {
         if (keyA < keyB) return -1;
         if (keyA > keyB) return 1;
@@ -61,15 +56,15 @@ function generateMockKey(method: string, rawPath: string, query: Record<string, 
 
     if (query) {
         if (typeof query === 'string') {
+            // Parse string into URLSearchParams for consistent sorting/encoding
             sortedQueryString = encodeQueryParams(new URLSearchParams(query));
         } else if (query instanceof URLSearchParams) {
              sortedQueryString = encodeQueryParams(query);
-        } else {
+        } else { // It's a Record<string, string>
             sortedQueryString = encodeQueryParams(query);
         }
     }
 
-    // Ensure consistent key format even with empty query string
     return `${method.toUpperCase()}:${normalizedPath}:${sortedQueryString}`;
 }
 
@@ -78,15 +73,14 @@ function generateMockKey(method: string, rawPath: string, query: Record<string, 
  */
 function normalizePath(rawPath: string): string {
     let path = rawPath.trim();
-    if (!path) return '/'; // Handle empty input path
-
     if (!path.startsWith('/')) {
         path = '/' + path;
     }
-    // Remove trailing slash only if it's not the root path itself
     if (path.length > 1 && path.endsWith('/')) {
         path = path.slice(0, -1);
     }
+    // Handle the root path case
+    if (path === '') return '/';
     return path;
 }
 
@@ -94,31 +88,11 @@ function normalizePath(rawPath: string): string {
  * Loads mock definitions from JSON file into the Map.
  */
 export async function loadMocks(): Promise<void> {
-    mockDefinitions = new Map();
-    console.log(`Attempting to load mocks from: ${MOCKS_FILE}`); // Add log for debugging path
-
-    // Check if the file exists before trying to read
-    try {
-        // Use exists helper function
-        const fileExists = await exists(MOCKS_FILE, { isFile: true });
-        if (!fileExists) {
-            console.log(`Mock file '${MOCKS_FILE}' not found or is not a file. Starting with empty definitions.`);
-            // Attempt to create the file if it doesn't exist, to avoid errors on first save
-            try {
-                await Deno.writeTextFile(MOCKS_FILE, "[]"); // Create empty JSON array
-                console.log(`Created empty mock file at '${MOCKS_FILE}'.`);
-            } catch (createError) {
-                 console.error(`Could not create mock file '${MOCKS_FILE}':`, createError);
-                 // Continue without mocks if creation fails
-            }
-            return;
-        }
-    } catch (checkError) {
-         console.error(`Error checking existence of mock file '${MOCKS_FILE}':`, checkError);
-         // Continue with empty mocks if check fails
-         return;
+    mockDefinitions = new Map(); // Clear existing
+    if (!await exists(MOCKS_FILE)) {
+        console.log(`Mock file '${MOCKS_FILE}' not found. Starting with empty definitions.`);
+        return;
     }
-
 
     try {
         const content = await Deno.readTextFile(MOCKS_FILE);
@@ -130,17 +104,18 @@ export async function loadMocks(): Promise<void> {
         const mocksList: Partial<MockDefinition>[] = JSON.parse(content);
         let count = 0;
         for (const mockData of mocksList) {
+            // Basic validation and defaults
             const method = mockData.method?.toUpperCase();
             const rawPath = mockData.path;
             const queryParams = mockData.query_params ?? {};
 
-            if (method && rawPath !== undefined && rawPath !== null) { // Check rawPath explicitly
-                const normalizedPath = normalizePath(rawPath);
+            if (method && rawPath) {
+                const normalizedPath = normalizePath(rawPath); // Use normalized path
                 const key = generateMockKey(method, normalizedPath, queryParams);
 
                 const fullMock: MockDefinition = {
                     name: mockData.name ?? '',
-                    path: normalizedPath,
+                    path: normalizedPath, // Store normalized path
                     method: method,
                     query_params: queryParams,
                     status_code: mockData.status_code ?? 200,
@@ -151,14 +126,15 @@ export async function loadMocks(): Promise<void> {
                 mockDefinitions.set(key, fullMock);
                 count++;
             } else {
-                console.warn(`Skipping invalid mock entry (missing method or path): ${JSON.stringify(mockData)}`);
+                console.warn(`Skipping invalid mock entry: ${JSON.stringify(mockData)}`);
             }
         }
         console.log(`Loaded ${count} valid mocks from '${MOCKS_FILE}'.`);
 
     } catch (error) {
-        console.error(`Error loading/parsing mocks from '${MOCKS_FILE}':`, error);
-        mockDefinitions = new Map(); // Reset on error
+        console.error(`Error loading mocks from '${MOCKS_FILE}':`, error);
+        // Optionally, start with an empty set or re-throw
+        mockDefinitions = new Map();
     }
 }
 
@@ -168,11 +144,10 @@ export async function loadMocks(): Promise<void> {
 async function saveMocks(): Promise<void> {
     const mocksList = Array.from(mockDefinitions.values());
     try {
-        await Deno.writeTextFile(MOCKS_FILE, JSON.stringify(mocksList, null, 2));
+        await Deno.writeTextFile(MOCKS_FILE, JSON.stringify(mocksList, null, 2)); // Pretty print JSON
         console.log(`Saved ${mocksList.length} mocks to '${MOCKS_FILE}'.`);
     } catch (error) {
         console.error(`Error saving mocks to '${MOCKS_FILE}':`, error);
-        // Consider how to handle save errors - maybe retry? Log severity?
     }
 }
 
@@ -180,27 +155,25 @@ async function saveMocks(): Promise<void> {
  * Adds or updates a mock definition.
  */
 export async function addOrUpdateMock(data: Omit<MockDefinition, 'query_params'> & { query_string?: string }): Promise<void> {
-    // Ensure required fields have sane defaults or are validated before this point (like in router)
     const method = data.method.toUpperCase();
-    const normalizedPath = normalizePath(data.path); // Path validation should happen before calling this
-    const queryParams = Object.fromEntries(new URLSearchParams(data.query_string ?? '').entries());
-    const statusCode = data.status_code >= 100 && data.status_code <= 599 ? data.status_code : 200; // Ensure valid status
+    const normalizedPath = normalizePath(data.path);
+    const queryParams = Object.fromEntries(new URLSearchParams(data.query_string ?? '').entries()); // Parse string to object
 
     const key = generateMockKey(method, normalizedPath, queryParams);
 
     const mockData: MockDefinition = {
-        name: (data.name ?? "").trim(), // Ensure name is string
+        name: data.name.trim(),
         path: normalizedPath,
         method: method,
-        query_params: queryParams,
-        status_code: statusCode,
-        content_type: (data.content_type ?? "application/json").trim(), // Ensure content_type is string
-        response_body: data.response_body ?? "" // Ensure response_body is string
+        query_params: queryParams, // Store as object
+        status_code: data.status_code,
+        content_type: data.content_type.trim(),
+        response_body: data.response_body
     };
 
     mockDefinitions.set(key, mockData);
     console.log(`Upserted mock with key: ${key}`);
-    await saveMocks(); // Save changes
+    await saveMocks();
 }
 
 /**
@@ -211,18 +184,17 @@ export async function deleteMock(method: string, path: string, queryString: stri
     if (mockDefinitions.has(key)) {
         mockDefinitions.delete(key);
         console.log(`Deleted mock with key: ${key}`);
-        await saveMocks(); // Save changes
+        await saveMocks();
         return true;
     } else {
         console.warn(`Mock not found for deletion with key: ${key}`);
-        // Optional: Log existing keys for debugging
-        // console.log("Available keys:", Array.from(mockDefinitions.keys()));
         return false;
     }
 }
 
 /**
  * Finds a mock definition matching the request details.
+ * Tries exact match first (method, path, query params), then fallback (method, path, no query params).
  */
 export function findMock(method: string, requestPath: string, queryParams: URLSearchParams): { mock: MockDefinition; matchType: 'Exact' | 'Fallback (Path Only)' } | null {
     const normalizedPath = normalizePath(requestPath);
@@ -230,24 +202,20 @@ export function findMock(method: string, requestPath: string, queryParams: URLSe
     // 1. Try exact match
     const exactKey = generateMockKey(method, normalizedPath, queryParams);
     console.log(`  Attempting exact match lookup with key: ${exactKey}`);
-    let mock = mockDefinitions.get(exactKey);
-    if (mock) {
+    if (mockDefinitions.has(exactKey)) {
         console.log(`  Found exact match!`);
-        return { mock, matchType: 'Exact' };
+        return { mock: mockDefinitions.get(exactKey)!, matchType: 'Exact' };
     }
 
-    // 2. Try fallback match only if exact match failed AND query params were present in the request
-    if (queryParams.toString() !== '') {
-        const fallbackKey = generateMockKey(method, normalizedPath, {}); // Empty query params for fallback key
-        console.log(`  Exact match failed. Attempting fallback match with key: ${fallbackKey}`);
-        mock = mockDefinitions.get(fallbackKey);
-        if (mock) {
-            console.log(`  Found fallback match (mock defined for path without specific query params).`);
-            return { mock, matchType: 'Fallback (Path Only)' };
-        }
+    // 2. Try fallback match (ignore query params if exact match failed)
+    const fallbackKey = generateMockKey(method, normalizedPath, {}); // Empty query params for fallback key
+    console.log(`  Exact match failed. Attempting fallback match with key: ${fallbackKey}`);
+    if (mockDefinitions.has(fallbackKey)) {
+        console.log(`  Found fallback match (mock defined for path without specific query params).`);
+        return { mock: mockDefinitions.get(fallbackKey)!, matchType: 'Fallback (Path Only)' };
     }
 
-    console.log(`  No match found for path ${normalizedPath} and query ${queryParams.toString()}.`);
+    console.log(`  Fallback match also failed.`);
     return null;
 }
 
@@ -256,6 +224,7 @@ export function findMock(method: string, requestPath: string, queryParams: URLSe
  */
 export function getAllMocksSorted(): MockDefinition[] {
     const mocks = Array.from(mockDefinitions.values());
+    // Sort by name (case-insensitive), then path, method, query params string
     mocks.sort((a, b) => {
         const nameA = a.name.toLowerCase();
         const nameB = b.name.toLowerCase();
@@ -280,6 +249,7 @@ export function getAllMocksSorted(): MockDefinition[] {
 
 /**
  * Finds possible matches for a given method and path (ignoring query params)
+ * Used for helpful 404 messages.
  */
 export function findPossibleMocks(method: string, requestPath: string): MockDefinition[] {
     const normalizedPath = normalizePath(requestPath);
