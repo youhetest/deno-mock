@@ -1,4 +1,4 @@
-import { Router, Context } from "https://deno.land/x/oak@v12.6.1/mod.ts";
+import { Router, Application, Context /* etc. */ } from "https://deno.land/x/oak@v12.6.1/mod.ts";
 import * as dejs from "dejs";
 import * as mockService from "./mockService.ts";
 import * as path from "std/path/mod.ts";
