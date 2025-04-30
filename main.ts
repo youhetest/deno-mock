@@ -1,4 +1,4 @@
-import { Application } from "jsr:@oak/oak/application";
+import { Application } from "https://deno.land/x/oak@v12.6.1/mod.ts";
 import router from "./routes.ts";
 import { loadMocks } from "./mockService.ts";
 
