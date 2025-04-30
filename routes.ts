@@ -1,17 +1,25 @@
+// Import necessary modules using full URLs
+import { Router, Context } from "https://deno.land/x/oak@v12.6.1/mod.ts"; // <<< ADD THIS LINE BACK
+import * as dejs from "https://deno.land/x/dejs@0.10.3/mod.ts";
+import * as path from "https://deno.land/std@0.208.0/path/mod.ts";
+import * as mockService from "./mockService.ts";
+
 const router = new Router();
-const viewsPath = path.join(Deno.cwd(), "views");
+// Adjust path finding for deployment environment if needed
+// Using import.meta.url is generally more reliable
+const scriptDir = path.dirname(path.fromFileUrl(import.meta.url));
+const viewsPath = path.join(scriptDir, "views"); // Path relative to routes.ts
 
 // --- Helper function defined outside the object ---
-// Escapes HTML special characters for use in attributes
+// CORRECTED AGAIN: Escapes HTML special characters for use in attributes
 const escapeAttrHelper = (str: unknown): string => {
     if (typeof str !== 'string') return '';
-    // Need the HTML entity ''' for single quotes to be safe in attributes
-    // Using double quotes for the JS string literal avoids escaping issues
+    // Replace characters with their corresponding HTML entities
     return str.replace(/&/g, "&")
               .replace(/</g, "<")
               .replace(/>/g, ">")
-              .replace(/"/g, "\"")
-              .replace(/'/g, "'"); // Use HTML entity '
+              .replace(/"/g, """)
+              .replace(/'/g, "'"); // Use HTML entity ' for single quote
 };
 
 
@@ -21,21 +29,19 @@ async function render(ctx: Context, templateName: string, data: Record<string, u
         const templatePath = path.join(viewsPath, templateName);
         const template = await Deno.readTextFile(templatePath);
 
-        // Add helpers/global data available to all templates
         const fullData = {
-            ...data, // Spread existing data first
-            encodeQueryParams: mockService.encodeQueryParams, // Add query param helper
-            escapeAttr: escapeAttrHelper // Assign the helper function here
-            // Ensure NO trailing comma after the last property ('escapeAttr')
+            ...data,
+            encodeQueryParams: mockService.encodeQueryParams,
+            escapeAttr: escapeAttrHelper
         };
 
-        // Use dejs.renderToString
         const body = await dejs.renderToString(template, fullData);
 
         ctx.response.headers.set("Content-Type", "text/html; charset=utf-8");
         ctx.response.body = body;
     } catch (error) {
-        console.error(`Error rendering template ${templateName}:`, error);
+        // Log the specific template path that failed for easier debugging
+        console.error(`Error rendering template '${templateName}' at path '${viewsPath}':`, error);
         ctx.response.status = 500;
         ctx.response.body = "Internal Server Error: Failed to render page.";
         ctx.response.headers.set("Content-Type", "text/plain");
@@ -57,14 +63,11 @@ router.post("/add_mock", async (ctx) => {
         console.log("Received form data for add/update:", Object.fromEntries(formData.entries()));
 
         const pathValue = formData.get("path");
-        // Basic server-side validation for path
         if (!pathValue || !pathValue.startsWith('/')) {
              console.error("Invalid path submitted:", pathValue);
-             // Redirect back, maybe add query param for error message display later
              ctx.response.redirect("/mock?error=invalid_path");
              return;
         }
-        // Basic server-side validation for status code
         const statusCodeRaw = formData.get("status_code") ?? "200";
         const statusCode = parseInt(statusCodeRaw, 10);
         if (isNaN(statusCode) || statusCode < 100 || statusCode > 599) {
@@ -78,15 +81,14 @@ router.post("/add_mock", async (ctx) => {
             path: pathValue,
             method: formData.get("method") ?? "GET",
             query_string: formData.get("query_params") ?? "",
-            status_code: statusCode, // Use parsed and validated status code
+            status_code: statusCode,
             content_type: formData.get("content_type") ?? "application/json",
             response_body: formData.get("response_body") ?? "",
         });
     } catch (error) {
         console.error("Error processing add/update mock:", error);
-        // Optionally redirect with a generic error
          ctx.response.redirect("/mock?error=add_failed");
-         return; // Prevent further execution like the redirect below
+         return;
     }
     ctx.response.redirect("/mock");
 });
@@ -111,7 +113,7 @@ router.post("/delete_mock", async (ctx) => {
     } catch (error) {
         console.error("Error processing delete mock:", error);
          ctx.response.redirect("/mock?error=delete_failed");
-         return; // Prevent further execution
+         return;
     }
     ctx.response.redirect("/mock");
 });
